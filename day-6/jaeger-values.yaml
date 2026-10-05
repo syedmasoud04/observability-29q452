@@ -1,35 +1,43 @@
+# Compatible with jaeger chart 3.4.0; credentials are copied by local/lab.sh.
 storage:
   type: elasticsearch
   elasticsearch:
-    host: elasticsearch-master.logging.svc  # Replace with your Elasticsearch service DNS
+    host: elasticsearch-master.logging.svc
     port: 9200
     scheme: https
-    user: elastic  # Replace with the actual username if necessary
-    password: cbTQj1qxRIPNF5uc  # Replace with the actual password
+    user: elastic
+    existingSecret: jaeger-es-credentials
+    existingSecretKey: password
     tls:
       enabled: true
-      ca: /tls/ca-cert.pem  # Path where the CA cert is mounted
-
+      secretName: es-tls-secret
+      mountPath: /es-tls/ca-cert.pem
+      subPath: ca-cert.pem
+      ca: /es-tls/ca-cert.pem
 provisionDataStore:
   cassandra: false
   elasticsearch: false
-
-query:
-  cmdlineParams:
-    es.tls.ca: "/tls/ca-cert.pem"
-  extraConfigmapMounts:
-    - name: jaeger-tls
-      mountPath: /tls
-      subPath: ""
-      configMap: jaeger-tls
-      readOnly: true
-
+  kafka: false
+agent:
+  enabled: false
 collector:
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    otlp:
+      grpc: {name: otlp-grpc, port: 4317}
+      http: {name: otlp-http, port: 4318}
   cmdlineParams:
-    es.tls.ca: "/tls/ca-cert.pem"
-  extraConfigmapMounts:
-    - name: jaeger-tls
-      mountPath: /tls
-      subPath: ""
-      configMap: jaeger-tls
-      readOnly: true
+    collector.otlp.enabled: "true"
+    collector.otlp.grpc.host-port: "0.0.0.0:4317"
+    collector.otlp.http.host-port: "0.0.0.0:4318"
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+query:
+  replicaCount: 1
+  service:
+    type: ClusterIP
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 256Mi}

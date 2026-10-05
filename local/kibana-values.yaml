@@ -1,0 +1,9 @@
+replicas: 1
+service:
+  type: ClusterIP
+resources:
+  requests: {cpu: 100m, memory: 512Mi}
+  limits: {cpu: "1", memory: 1Gi}
+extraEnvs:
+  - name: NODE_OPTIONS
+    value: "--max-old-space-size=512"
