@@ -1,117 +1,80 @@
-# otel-collector-values.yaml
-
-mode: "deployment"
-
+mode: deployment
+replicaCount: 1
+fullnameOverride: otel-collector
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.161.0"
+  pullPolicy: IfNotPresent
+command:
+  name: otelcol-contrib
+service:
+  type: ClusterIP
+resources:
+  requests: {cpu: 100m, memory: 128Mi}
+  limits: {cpu: 500m, memory: 512Mi}
 config:
   receivers:
+    jaeger: null
+    zipkin: null
+    prometheus: null
     otlp:
       protocols:
-        http:
-          endpoint: "0.0.0.0:4318"
         grpc:
           endpoint: "0.0.0.0:4317"
-
+        http:
+          endpoint: "0.0.0.0:4318"
   processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 384
+      spike_limit_mib: 64
     batch: {}
-
   exporters:
     prometheus:
       endpoint: "0.0.0.0:8889"
-
-    # jaeger:
-    #   endpoint: "jaeger-collector.olly:14250"  # Jaeger gRPC endpoint
-    #   insecure: true
-
-    otlp:
-      endpoint: "jaeger-collector.olly:4317"  # Update as per your Jaeger service
+    otlp/jaeger:
+      endpoint: "jaeger-collector.tracing.svc:4317"
       tls:
         insecure: true
     debug:
-      verbosity: detailed
+      verbosity: basic
   service:
     pipelines:
       metrics:
         receivers: [otlp]
-        processors: [batch]
+        processors: [memory_limiter, batch]
         exporters: [prometheus]
       traces:
         receivers: [otlp]
-        processors: [batch]
-        exporters: [otlp]
-
-image:
-  repository: "otel/opentelemetry-collector-contrib"  # Use contrib image
-  tag: "latest"  # Specify the desired tag
-  pullPolicy: "IfNotPresent"
-
-command:
-  name: "otelcol-contrib"  # Optional: Update command name if necessary
-
-service:
-  type: ClusterIP
-
-# Uncomment and configure if using ServiceMonitor
-# serviceMonitor:
-#   enabled: true
-#   namespace: olly
-#   selector:
-#     matchLabels:
-#       app: otel-collector
-#   endpoints:
-#     - port: prometheus
-#       interval: 2s
-
-resources:
-  requests:
-    memory: "256Mi"
-    cpu: "250m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
-
+        processors: [memory_limiter, batch]
+        exporters: [otlp/jaeger]
+      # Optional OTLP logs are written to stdout and picked up by Fluent Bit.
+      # The Go examples themselves log to stdout, not through the OTLP Logs SDK.
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [debug]
 ports:
   prometheus:
     enabled: true
     containerPort: 8889
     servicePort: 8889
-    hostPort: 8889
     protocol: TCP
-    appProtocol: TCP
   otlp:
     enabled: true
     containerPort: 4317
     servicePort: 4317
-    hostPort: 4317
     protocol: TCP
-    # nodePort: 30317
-    appProtocol: grpc
   otlp-http:
     enabled: true
     containerPort: 4318
     servicePort: 4318
-    hostPort: 4318
     protocol: TCP
   jaeger-compact:
-    enabled: true
-    containerPort: 6831
-    servicePort: 6831
-    hostPort: 6831
-    protocol: UDP
+    enabled: false
   jaeger-thrift:
-    enabled: true
-    containerPort: 14268
-    servicePort: 14268
-    hostPort: 14268
-    protocol: TCP
+    enabled: false
   jaeger-grpc:
-    enabled: true
-    containerPort: 14250
-    servicePort: 14250
-    hostPort: 14250
-    protocol: TCP
+    enabled: false
   zipkin:
-    enabled: true
-    containerPort: 9411
-    servicePort: 9411
-    hostPort: 9411
-    protocol: TCP
+    enabled: false

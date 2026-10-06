@@ -1,22 +1,74 @@
+# Single-node lab sizing; this is not a highly available deployment.
 grafana:
-  adminPassword: prom-operator
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: true
+    storageClassName: standard
+    size: 1Gi
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+
+prometheus:
+  service:
+    type: ClusterIP
+  prometheusSpec:
+    replicas: 1
+    retention: 12h
+    retentionSize: 4GB
+    scrapeInterval: 30s
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: "1", memory: 1Gi}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 5Gi}
 
 alertmanager:
+  service:
+    type: ClusterIP
   alertmanagerSpec:
-    # Selects Alertmanager configuration based on these labels. Ensure that the Alertmanager configuration has matching labels.
-    # ✅ Solves error: Misconfigured Alertmanager selectors can lead to missing alert configurations.
-    # ✅ Solves error: Alertmanager wasn't able to findout the applied CRD (kind: Alertmanagerconfig)
+    replicas: 1
     alertmanagerConfigSelector:
       matchLabels:
         release: monitoring
-
-    # Sets the number of Alertmanager replicas to 3 for high availability.
-    # ✅ Solves error: Single replica can cause alerting issues during pod failures.
-    # ✅ Solves error: Alertmanager Cluster Status is Disabled (GitHub issue)
-    replicas: 2
-
-    # Sets the strategy for matching Alertmanager configurations. 'None' means no specific matching strategy.
-    # ✅ Solves error: Incorrect matcher strategy can lead to unhandled alert configurations.
-    # ✅ Solves error: Get rid of namespace matchers when creating AlertManagerConfig (GitHub issue)
     alertmanagerConfigMatcherStrategy:
       type: None
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 1Gi}
+
+prometheusOperator:
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+# kind does not expose these control-plane metrics endpoints by default.
+# Keep API server, kubelet/cAdvisor, node exporter and kube-state-metrics.
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeProxy:
+  enabled: false
+defaultRules:
+  rules:
+    etcd: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeControllerManager: false
+    kubeProxy: false

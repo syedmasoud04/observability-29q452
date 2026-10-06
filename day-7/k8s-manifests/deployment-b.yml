@@ -1,10 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: go-service-b-deployment
   labels:
     app: go-service-b-deployment
-    # run: go-service-b-deployment
-  name: go-service-b-deployment
 spec:
   replicas: 1
   selector:
@@ -16,16 +15,33 @@ spec:
         app: go-service-b-deployment
     spec:
       containers:
-      # - image: ankitjodhani/golang-svc-b:latest
-      - image: <<IMAGE_NAME_ID>>:<<TAG>>
-        name: service-a
-        imagePullPolicy: Always
+      - name: service-b
+        image: observability/go-service-b:local
+        imagePullPolicy: Never
         ports:
         - containerPort: 80
         env:
         - name: OTEL_COLLECTOR_ENDPOINT
-          value: "otel-collector-opentelemetry-collector.olly:4318"
+          value: otel-collector.olly.svc:4318
         - name: SVC_A_URI
-          value: "http://a-service.dev"
+          value: http://a-service.otel-demo
         - name: PORT
-          value: "80"
+          value: '80'
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /hello-b
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20

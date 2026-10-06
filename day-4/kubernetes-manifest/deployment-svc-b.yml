@@ -1,10 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: service-b-deployment
   labels:
     app: service-b-deployment
-    # run: service-b-deployment
-  name: service-b-deployment
 spec:
   replicas: 1
   selector:
@@ -16,11 +15,29 @@ spec:
         app: service-b-deployment
     spec:
       containers:
-      - image: abhishekf5/demoservice-a:v
-        name: service-b
-        imagePullPolicy: Always
+      - name: service-b
+        image: observability/service-b:local
+        imagePullPolicy: Never
         ports:
         - containerPort: 3002
         env:
         - name: OTEL_EXPORTER_JAEGER_ENDPOINT
-          value: "http://jaeger-collector.tracing:14268/api/traces"
+          value: http://jaeger-collector.tracing:14268/api/traces
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /hello
+            port: 3002
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 3002
+          initialDelaySeconds: 15
+          periodSeconds: 20
